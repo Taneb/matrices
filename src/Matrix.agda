@@ -149,6 +149,14 @@ lookup²-zipWith² f i j xss yss = begin
   f (lookup (lookup xss j) i) (lookup (lookup yss j) i) ∎
   where open ≡.≡-Reasoning
 
+lookup²-replicate² : ∀ {a} {A : Set a} {m n} (i : Fin m) (j : Fin n) (x : A) →
+                     lookup (lookup (replicate (replicate x)) j) i ≡ x
+lookup²-replicate² i j x = begin
+  lookup (lookup (replicate (replicate x)) j) i ≡⟨ ≡.cong (λ v → lookup v i) (lookup-replicate j (replicate x)) ⟩
+  lookup (replicate x) i ≡⟨ lookup-replicate i x ⟩
+  x ∎
+  where open ≡.≡-Reasoning
+
 *M-cong : ∀ {n m o} {M M′ : Matrix m o} {N N′ : Matrix n m} → M ≋ M′ → N ≋ N′ → (M *M N) ≋ (M′ *M N′)
 *M-cong {M = M} {M′} {N} {N′} M≋M′ N≋N′ = PW.ext λ x → PW.ext λ y → begin
   lookup (lookup (M *M N) x) y
@@ -257,4 +265,24 @@ private
   ∑[ j < _ ] (lookup (lookup N j) y * lookup (lookup M x) j) + ∑[ j < _ ] (lookup (lookup O j) y * lookup (lookup M x) j) ≡˘⟨ ≡.cong₂ _+_ (lookup²∘tabulate² _ x y) (lookup²∘tabulate² _ x y) ⟩
   lookup (lookup (N *M M) x) y + lookup (lookup (O *M M) x) y ≡˘⟨ lookup²-zipWith² _+_ y x (N *M M) (O *M M) ⟩
   lookup (lookup ((N *M M) +M (O *M M)) x) y ∎
+  where open Setoid-Reasoning setoid
+
+*M-zeroˡ : ∀ {m n o} (M : Matrix m n) → (0M {n} {o} *M M) ≋ 0M
+*M-zeroˡ {n = n} M = PW.ext λ x → PW.ext λ y → begin
+  lookup (lookup (0M *M M) x) y ≡⟨ lookup²∘tabulate² _ x y ⟩
+  ∑[ j < n ] (lookup (lookup 0M j) y * lookup (lookup M x) j) ≡⟨ (sum-cong-≗ λ j → ≡.cong (_* lookup (lookup M x) j) (lookup²-replicate² y j 0#)) ⟩
+  ∑[ j < n ] (0# * lookup (lookup M x) j) ≈⟨ (sum-cong-≋ λ j → zeroˡ (lookup (lookup M x) j)) ⟩
+  ∑[ j < n ] 0# ≈⟨ sum-replicate-zero n ⟩
+  0# ≡˘⟨ lookup²-replicate² y x 0# ⟩
+  lookup (lookup 0M x) y ∎
+  where open Setoid-Reasoning setoid
+
+*M-zeroʳ : ∀ {m n o} (M : Matrix n o) → (M *M 0M {m} {n}) ≋ 0M
+*M-zeroʳ {n = n} M = PW.ext λ x → PW.ext λ y → begin
+  lookup (lookup (M *M 0M) x) y ≡⟨ lookup²∘tabulate² _ x y ⟩
+  ∑[ j < n ] (lookup (lookup M j) y * lookup (lookup 0M x) j) ≡⟨ (sum-cong-≗ λ j → ≡.cong (lookup (lookup M j) y *_) (lookup²-replicate² j x 0#)) ⟩
+  ∑[ j < n ] (lookup (lookup M j) y  * 0#) ≈⟨ (sum-cong-≋ λ j → zeroʳ (lookup (lookup M j) y)) ⟩
+  ∑[ j < n ] 0# ≈⟨ sum-replicate-zero n ⟩
+  0# ≡˘⟨ lookup²-replicate² y x 0# ⟩
+  lookup (lookup 0M x) y ∎
   where open Setoid-Reasoning setoid
