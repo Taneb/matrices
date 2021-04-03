@@ -141,6 +141,14 @@ lookup²∘tabulate² f i j = begin
   f i j ∎
   where open ≡.≡-Reasoning
 
+lookup²-zipWith² : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → C) {m n} (i : Fin m) (j : Fin n) xss yss →
+                   lookup (lookup (zipWith (zipWith f) xss yss) j) i ≡ f (lookup (lookup xss j) i) (lookup (lookup yss j) i)
+lookup²-zipWith² f i j xss yss = begin
+  lookup (lookup (zipWith (zipWith f) xss yss) j) i ≡⟨ ≡.cong (λ v → lookup v i) (lookup-zipWith (zipWith f) j xss yss) ⟩
+  lookup (zipWith f (lookup xss j) (lookup yss j)) i ≡⟨ lookup-zipWith f i (lookup xss j) (lookup yss j) ⟩
+  f (lookup (lookup xss j) i) (lookup (lookup yss j) i) ∎
+  where open ≡.≡-Reasoning
+
 *M-cong : ∀ {n m o} {M M′ : Matrix m o} {N N′ : Matrix n m} → M ≋ M′ → N ≋ N′ → (M *M N) ≋ (M′ *M N′)
 *M-cong {M = M} {M′} {N} {N′} M≋M′ N≋N′ = PW.ext λ x → PW.ext λ y → begin
   lookup (lookup (M *M N) x) y
@@ -223,4 +231,30 @@ private
   ∑[ j < _ ] (lookup (lookup M j) y * lookup (lookup (tabulate λ a → tabulate λ b → if does (a ≟ b) then 1# else 0#) x) j) ≡⟨ (sum-cong-≗ λ j → ≡.cong (lookup (lookup M j) y *_) (lookup²∘tabulate² _ x j)) ⟩
   ∑[ j < _ ] (lookup (lookup M j) y * (if does (x ≟ j) then 1# else 0#)) ≈⟨ *M-identityʳ-lemma (λ j → lookup (lookup M j) y) x ⟩
   lookup (lookup M x) y ∎
+  where open Setoid-Reasoning setoid
+
+*M-distribˡ-+M : ∀ {m n o} (M : Matrix n o) (N O : Matrix m n) → (M *M (N +M O)) ≋ ((M *M N) +M (M *M O))
+*M-distribˡ-+M M N O = PW.ext λ x → PW.ext λ y → begin
+  lookup (lookup (M *M (N +M O)) x) y ≡⟨⟩
+  lookup (lookup (tabulate λ i → tabulate λ k → ∑[ j < _ ] (lookup (lookup M j) k * lookup (lookup (N +M O) i) j)) x) y ≡⟨ lookup²∘tabulate² _ x y ⟩
+  ∑[ j < _ ] (lookup (lookup M j) y * lookup (lookup (N +M O) x) j) ≡⟨⟩
+  ∑[ j < _ ] (lookup (lookup M j) y * lookup (lookup (zipWith (zipWith _+_) N O) x) j) ≡⟨ (sum-cong-≗ λ j → ≡.cong (lookup (lookup M j) y *_) (lookup²-zipWith² _+_ j x N O)) ⟩
+  ∑[ j < _ ] (lookup (lookup M j) y * (lookup (lookup N x) j + lookup (lookup O x) j)) ≈⟨ (sum-cong-≋ λ j → distribˡ (lookup (lookup M j) y) (lookup (lookup N x) j) (lookup (lookup O x) j)) ⟩
+  ∑[ j < _ ] ((lookup (lookup M j) y * lookup (lookup N x) j) + (lookup (lookup M j) y * lookup (lookup O x) j)) ≈⟨ ∑-distrib-+ (λ j → lookup (lookup M j) y * lookup (lookup N x) j) (λ j → lookup (lookup M j) y * lookup (lookup O x) j) ⟩
+  ∑[ j < _ ] (lookup (lookup M j) y * lookup (lookup N x) j) + ∑[ j < _ ] (lookup (lookup M j) y * lookup (lookup O x) j) ≡˘⟨ ≡.cong₂ _+_ (lookup²∘tabulate² _ x y) (lookup²∘tabulate² _ x y) ⟩
+  lookup (lookup (M *M N) x) y + lookup (lookup (M *M O) x) y ≡˘⟨ lookup²-zipWith² _+_ y x (M *M N) (M *M O) ⟩
+  lookup (lookup ((M *M N) +M (M *M O)) x) y ∎
+  where open Setoid-Reasoning setoid
+
+*M-distribʳ-+M : ∀ {m n o} (M : Matrix m n) (N O : Matrix n o) → ((N +M O) *M M) ≋ ((N *M M) +M (O *M M))
+*M-distribʳ-+M M N O = PW.ext λ x → PW.ext λ y → begin
+  lookup (lookup ((N +M O) *M M) x) y ≡⟨⟩
+  lookup (lookup (tabulate λ i → tabulate λ k → ∑[ j < _ ] (lookup (lookup (N +M O) j) k * lookup (lookup M i) j)) x) y ≡⟨ lookup²∘tabulate² _ x y ⟩
+  ∑[ j < _ ] (lookup (lookup (N +M O) j) y * lookup (lookup M x) j) ≡⟨⟩
+  ∑[ j < _ ] (lookup (lookup (zipWith (zipWith _+_) N O) j) y * lookup (lookup M x) j) ≡⟨ (sum-cong-≗ λ j → ≡.cong (_* lookup (lookup M x) j) (lookup²-zipWith² _+_ y j N O)) ⟩
+  ∑[ j < _ ] ((lookup (lookup N j) y + lookup (lookup O j) y) * lookup (lookup M x) j) ≈⟨ (sum-cong-≋ λ j → distribʳ (lookup (lookup M x) j) (lookup (lookup N j) y) (lookup (lookup O j) y)) ⟩
+  ∑[ j < _ ] ((lookup (lookup N j) y * lookup (lookup M x) j) + (lookup (lookup O j) y * lookup (lookup M x) j)) ≈⟨ ∑-distrib-+ (λ j → lookup (lookup N j) y * lookup (lookup M x) j) (λ j → lookup (lookup O j) y * lookup (lookup M x) j) ⟩
+  ∑[ j < _ ] (lookup (lookup N j) y * lookup (lookup M x) j) + ∑[ j < _ ] (lookup (lookup O j) y * lookup (lookup M x) j) ≡˘⟨ ≡.cong₂ _+_ (lookup²∘tabulate² _ x y) (lookup²∘tabulate² _ x y) ⟩
+  lookup (lookup (N *M M) x) y + lookup (lookup (O *M M) x) y ≡˘⟨ lookup²-zipWith² _+_ y x (N *M M) (O *M M) ⟩
+  lookup (lookup ((N *M M) +M (O *M M)) x) y ∎
   where open Setoid-Reasoning setoid
