@@ -219,3 +219,27 @@ private
   ∑[ j < n ] 0# ≈⟨ sum-replicate-zero n ⟩
   0M i k ∎
   where open Setoid-Reasoning setoid
+
+-- 0 is a zero object
+
+! : ∀ {n} → Matrix n 0
+! _ ()
+
+!-unique : ∀ {n} (M N : Matrix n 0) → M ≋ N
+!-unique M N _ ()
+
+¡ : ∀ {n} → Matrix 0 n
+¡ ()
+
+¡-unique : ∀ {n} (M N : Matrix 0 n) → M ≋ N
+¡-unique M N ()
+
+-- we can now define 0M in terms of ! and ¡
+
+private
+  module Zero-example where
+    0M′ : ∀ {m n} → Matrix m n
+    0M′ = ¡ *M !
+
+    0M≋0M′ : ∀ {m n} → 0M {m} {n} ≋ 0M′
+    0M≋0M′ i j = refl
